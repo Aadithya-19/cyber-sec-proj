@@ -1,3 +1,12 @@
+"""
+data.py
+-------
+Purpose:
+    Manages the connection to MongoDB and provides methods for:
+      - Fetching historical logs (used for initial training).
+      - Streaming new logs via MongoDB change streams.
+    Also creates necessary indexes for efficient querying.
+"""
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from dotenv import load_dotenv
 import os
