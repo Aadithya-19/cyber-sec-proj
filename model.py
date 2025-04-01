@@ -1,14 +1,3 @@
-"""
-model.py
---------
-Purpose:
-    Implements the AdaptiveAttackDetector which:
-      - Uses unsupervised anomaly detectors (HalfSpaceTrees) to compute an overall anomaly score.
-      - Uses a HoeffdingTreeClassifier for incremental supervised learning.
-      - Updates detectors and classifier with new log features.
-      - Processes each log and returns an anomaly score and a predicted attack type.
-"""
-
 from river import anomaly, compose, preprocessing, drift, tree
 import logging
 
@@ -80,4 +69,4 @@ class AdaptiveAttackDetector:
             return anomaly_score, attack_type
         except Exception as e:
             self.logger.error("Unexpected error in process_log: %s", e)
-            return 0.0, 'unknown'
+            return 0.0, 'unknown'   

@@ -1,17 +1,3 @@
-"""
-Feature.py
-----------
-Purpose:
-    Implements the FeatureExtractor which:
-      - Converts raw log records into a set of features for the ML model.
-      - Extracts time-based features (hour, day, and their sinusoidal transformations).
-      - Computes authentication metrics from 'auth_attempts'.
-      - Extracts session behavior metrics (duration, unique commands, command entropy, etc.).
-      - Counts suspicious commands.
-      - Retrieves an IP reputation score and country risk.
-      - Provides a method 'get_location()' to lookup the geographical location of an IP.
-"""
-
 from datetime import datetime
 import geoip2.database
 import os
@@ -109,4 +95,3 @@ class FeatureExtractor:
             return f"{city}, {country}"
         except Exception:
             return "Unknown"
-

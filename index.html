@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Monitoring Dashboard</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --background: #f8f9fa;
+            --text-color: #333;
+            --card-bg: #ffffff;
+            --log-bg: rgba(255, 255, 255, 0.9);
+            --log-hover: rgba(0, 123, 255, 0.2);
+        }
+
+        [data-theme="dark"] {
+            --background: #212529;
+            --text-color: #f8f9fa;
+            --card-bg: #343a40;
+            --log-bg: rgba(52, 58, 64, 0.9);
+            --log-hover: rgba(0, 123, 255, 0.4);
+            --secondary-color: #adb5bd;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1,
+        h2 {
+            color: var(--text-color);
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        input[type="email"] {
+            padding: 10px;
+            width: 100%;
+            max-width: 350px;
+            border: 2px solid var(--secondary-color);
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        input[type="email"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .logs,
+        .attack-description {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px solid var(--secondary-color);
+            border-radius: 8px;
+            max-height: 350px;
+            overflow-y: auto;
+            background-color: var(--log-bg);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            animation: slideIn 0.5s ease-in;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-entry,
+        .attack-text {
+            margin: 8px 0;
+            padding: 10px;
+            background-color: rgba(0, 123, 255, 0.1);
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+            color: var(--text-color);
+            white-space: pre-wrap;
+            /* Preserve formatting for JSON */
+            font-size: 14px;
+        }
+
+        .log-entry:hover,
+        .attack-text:hover {
+            background-color: var(--log-hover);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background-color: #495057;
+        }
+    </style>
+</head>
+
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
+    <div class="container">
+        <h1>Log Monitoring Dashboard</h1>
+
+        <!-- Email Form with Help Text -->
+        <div class="form-group">
+            <label for="userEmail">Enter Your Email for Notifications:</label>
+            <input type="email" id="userEmail" placeholder="example@domain.com" required
+                aria-label="Email for notifications">
+            <span id="emailHelp"
+                style="font-size: 14px; color: var(--secondary-color); display: block; margin-top: 5px;"></span>
+            <button onclick="sendEmail()">Send Notification</button>
+        </div>
+
+        <!-- Logs Display -->
+        <h2>Authentication Logs</h2>
+        <div id="authLogs" class="logs"></div>
+
+        <h2>Session Logs</h2>
+        <div id="sessionLogs" class="logs"></div>
+        <h2>Malicious Attempts</h2>
+        <div id="maliciousAttempts" class="logs"></div>
+        <!-- Attack Description -->
+        <h2>Potential Attack Description</h2>
+        <div id="attackDescription" class="attack-description"></div>
+
+    </div>
+
+    <!-- SocketIO Client Library -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        // Theme toggle with persistence
+        function toggleTheme() {
+            const currentTheme = document.body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Connect to SocketIO
+        const socket = io('http://localhost:5000');
+
+        // Handle log updates from server with animation
+        socket.on('log_update', (data) => {
+            const authLogsDiv = document.getElementById('authLogs');
+            authLogsDiv.innerHTML = '';
+            data.auth_logs.forEach(log => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.textContent = JSON.stringify(log, null, 2); // Pretty print JSON with indentation
+                authLogsDiv.appendChild(logEntry);
+                logEntry.style.opacity = 0;
+                setTimeout(() => logEntry.style.opacity = 1, 100);
+            });
+        });
+
+        socket.on('session_update', (data) => {
+            const sessionLogsDiv = document.getElementById('sessionLogs');
+            sessionLogsDiv.innerHTML = '';
+            data.session_logs.forEach(log => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.textContent = JSON.stringify(log, null, 2); // Pretty print JSON with indentation
+                sessionLogsDiv.appendChild(logEntry);
+                logEntry.style.opacity = 0;
+                setTimeout(() => logEntry.style.opacity = 1, 100);
+            });
+        });
+
+        // Handle attack description updates
+        socket.on('attack_description', (data) => {
+            const attackDiv = document.getElementById('attackDescription');
+            attackDiv.innerHTML = ''; // Clear existing content
+            const attackText = document.createElement('p');
+            attackText.className = 'attack-text';
+            let description = data.description || 'No attack detected yet. Check logs for updates or wait for ML analysis.';
+            attackText.textContent = description;
+            attackDiv.appendChild(attackText);
+            attackText.style.opacity = 0;
+            setTimeout(() => attackText.style.opacity = 1, 100);
+        });
+
+        // Fetch and display initial attacks on load
+        window.onload = () => {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+            document.body.setAttribute('data-theme', initialTheme);
+
+            fetch('/logs')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.auth_logs) {
+                        const authLogsDiv = document.getElementById('authLogs');
+                        authLogsDiv.innerHTML = '';
+                        data.auth_logs.forEach(log => {
+                            const logEntry = document.createElement('div');
+                            logEntry.className = 'log-entry';
+                            logEntry.textContent = JSON.stringify(log, null, 2);
+                            authLogsDiv.appendChild(logEntry);
+                            logEntry.style.opacity = 0;
+                            setTimeout(() => logEntry.style.opacity = 1, 100);
+                        });
+                    }
+                    if (data.session_logs) {
+                        const sessionLogsDiv = document.getElementById('sessionLogs');
+                        sessionLogsDiv.innerHTML = '';
+                        data.session_logs.forEach(log => {
+                            const logEntry = document.createElement('div');
+                            logEntry.className = 'log-entry';
+                            logEntry.textContent = JSON.stringify(log, null, 2);
+                            sessionLogsDiv.appendChild(logEntry);
+                            logEntry.style.opacity = 0;
+                            setTimeout(() => logEntry.style.opacity = 1, 100);
+                        });
+                    }
+
+                    fetch('/analyze_attacks', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    })
+                        .then(response => response.json())
+                        .then(attack_data => {
+                            let attackDescription = 'No attack detected yet. Check logs for updates or wait for ML analysis.';
+                            if (Object.keys(attack_data).length > 0 && !attack_data.error) {
+                                attackDescription = `Detected Attacks:\n`;
+                                for (const [logId, details] of Object.entries(attack_data)) {
+                                    attackDescription += `Log ID: ${logId}\n`;
+                                    attackDescription += `Type: ${details.attack_type}\n`;
+                                    attackDescription += `Confidence: ${details.confidence}\n`;
+                                    attackDescription += `Actions: ${details.actions.join(', ')}\n`;
+                                    attackDescription += `Context: IP=${details.context.ip}, Location=${details.context.location}\n\n`;
+                                }
+                            }
+                            const attackDiv = document.getElementById('attackDescription');
+                            const attackText = document.createElement('p');
+                            attackText.className = 'attack-text';
+                            attackText.textContent = attackDescription;
+                            attackDiv.innerHTML = '';
+                            attackDiv.appendChild(attackText);
+                            attackText.style.opacity = 0;
+                            setTimeout(() => attackText.style.opacity = 1, 100);
+                        })
+                        .catch(error => console.error('Error fetching attack analysis:', error));
+
+                    fetch('/malicious_attempts')
+                        .then(response => response.json())
+                        .then(data => {
+                            const maliciousDiv = document.getElementById('maliciousAttempts');
+                            // Clear previous content
+                            maliciousDiv.innerHTML = '';
+                            if (!data.error) {
+                                // Create a table to display CSV data
+                                const table = document.createElement('table');
+                                table.className = 'malicious-table';
+                                const thead = document.createElement('thead');
+                                const tbody = document.createElement('tbody');
+                                const headers = ['IP', 'Time', 'Attack Type', 'Location', 'Recommended Steps'];
+                                let headerRow = '<tr>';
+                                headers.forEach(header => headerRow += `<th>${header}</th>`);
+                                headerRow += '</tr>';
+                                thead.innerHTML = headerRow;
+                                table.appendChild(thead);
+                                data.forEach(entry => {
+                                    const row = document.createElement('tr');
+                                    headers.forEach(header => {
+                                        const cell = document.createElement('td');
+                                        cell.textContent = entry[header] || 'N/A';
+                                        row.appendChild(cell);
+                                    });
+                                    tbody.appendChild(row);
+                                });
+                                table.appendChild(tbody);
+                                maliciousDiv.appendChild(table);
+                            } else {
+                                maliciousDiv.innerHTML = '<div class="malicious-entry">Error loading malicious attempts. Check server logs.</div>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching malicious attempts:', error);
+                            document.getElementById('maliciousAttempts').innerHTML = '<div class="malicious-entry">Error loading malicious attempts. Check server logs.</div>';
+                        });
+
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    const authLogsDiv = document.getElementById('authLogs');
+                    const sessionLogsDiv = document.getElementById('sessionLogs');
+                    const attackDiv = document.getElementById('attackDescription');
+                    const maliciousDiv = document.getElementById('maliciousAttempts');
+                    authLogsDiv.innerHTML = '<div class="log-entry">Error loading authentication logs. Check server logs.</div>';
+                    sessionLogsDiv.innerHTML = '<div class="log-entry">Error loading session logs. Check server logs.</div>';
+                    attackDiv.innerHTML = '<p class="attack-text">Error loading attack analysis. Check server logs.</p>';
+                    maliciousDiv.innerHTML = '<div class="malicious-entry">Error loading malicious attempts. Check server logs.</div>';
+                });
+        };
+
+        // Generate help text
+        async function generateHelpText(context) {
+            try {
+                const response = await fetch('/generate_help', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ context: context })
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('Help text response:', data);
+                return data.help_text || "Enter your email to receive alerts.";
+            } catch (error) {
+                console.error('Error generating help text:', error);
+                return "Temporary issue fetching help—enter your email to proceed.";
+            }
+        }
+
+        // Show help text on focus
+        document.getElementById('userEmail').addEventListener('focus', async () => {
+            const helpText = await generateHelpText("Provide your email for security notifications.");
+            document.getElementById('emailHelp').textContent = helpText;
+        });
+
+        // Clear help text on blur
+        document.getElementById('userEmail').addEventListener('blur', () => {
+            document.getElementById('emailHelp').textContent = '';
+        });
+
+        // Send email via Flask backend
+        function sendEmail() {
+            const email = document.getElementById('userEmail').value;
+            if (email) {
+                fetch('/send_email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message || 'Email sent successfully!');
+                        const button = document.querySelector('button');
+                        button.disabled = true;
+                        button.textContent = 'Sending...';
+                        setTimeout(() => {
+                            button.disabled = false;
+                            button.textContent = 'Send Notification';
+                        }, 2000);
+                    })
+                    .catch(error => {
+                        alert('Error sending email: ' + error.message);
+                    });
+            } else {
+                alert('Please enter a valid email address.');
+            }
+        }
+    </script>
+</body>
+
+</html>

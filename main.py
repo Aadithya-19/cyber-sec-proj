@@ -1,22 +1,3 @@
-"""
-main.py
--------
-Purpose:
-    - Entry point for the ML-based honeypot attack classification system.
-    - Initializes the MongoDB connection, feature extractor, ML model (AdaptiveAttackDetector),
-      response engine, and performance monitor.
-    - Reads logs from MongoDB in real time, computes features (including interarrival time),
-      and classifies each log using a heuristic (e.g.:
-         - 'command_injection' if any suspicious commands are present,
-         - 'brute_force' if the time between logs from the same IP is < 3 seconds,
-         - 'suspicious' otherwise).
-    - Automatically updates the classifier with the heuristic label if the model prediction
-      is not consistent.
-    - Determines the recommended response and logs details (with recommended mitigation steps)
-      to a CSV file for further processing by a front end (or ChatGPT API).
-    - Periodically saves the model and generates performance reports.
-"""
-
 import time 
 import joblib
 from dotenv import load_dotenv
@@ -27,7 +8,7 @@ from datetime import datetime
 from data import MongoDBHandler
 from Feature import FeatureExtractor
 from model import AdaptiveAttackDetector
-from response import ResponseEngine
+from response_engine import ResponseEngine
 from Performance_Checker import PerformanceMonitor
 
 # Configuration

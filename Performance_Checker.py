@@ -1,13 +1,3 @@
-"""
-Performance_Checker.py
-----------------------
-Purpose:
-    - Monitors and reports on the performance of the ML system.
-    - Collects performance metrics such as anomaly scores and counts of detected attacks.
-    - Generates visual reports (histograms, cumulative attack counts, confusion matrices, and ROC curves)
-      using matplotlib and saves the output as an image file for further analysis.
-"""
-
 import matplotlib.pyplot as plt
 from matplotlib import dates as mdates
 import numpy as np
