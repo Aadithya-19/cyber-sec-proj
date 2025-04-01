@@ -1,9 +1,0 @@
-Flask==2.2.5
-Werkzeug==2.2.3
-flask-socketio
-pandas
-pymongo
-# add other packages you need
-Flask-Mail
-scikit-learn
-openai>=1.10.0
