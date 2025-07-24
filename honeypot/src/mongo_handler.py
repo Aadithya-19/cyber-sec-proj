@@ -5,7 +5,7 @@ from pymongo import MongoClient
 import os
 
 # 1️⃣ Connect to MongoDB
-client = MongoClient("mongodb+srv://gurleenbatra14:caT3UWUhsicwY3Wo@gurleen.tsoo9.mongodb.net/?tls=true&tlsAllowInvalidCertificates=true&tlsVersion=TLS1_2")
+client = MongoClient("")#client id
 db = client["Honey"]
 collection = db["records"]
 
